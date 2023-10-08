@@ -28,7 +28,10 @@ func GetConfig() Config {
 }
 
 func CreateServer() *fiber.App {
-	app := fiber.New(fiber.Config{})
+	app := fiber.New(fiber.Config{
+		Prefork:     true,
+		Concurrency: 512 * 1024,
+	})
 
 	return app
 }
