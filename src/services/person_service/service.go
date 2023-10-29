@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"rinha-de-backend/pkg/opentelemetry"
 	"rinha-de-backend/src/dtos/person_dto"
 	"rinha-de-backend/src/interfaces"
 )
@@ -20,14 +21,17 @@ func New(repository interfaces.PersonRepository) *Service {
 }
 
 func (s *Service) GetByID(ctx context.Context, ID uuid.UUID) (person_dto.Info, error) {
+	ctx, parentSpan := opentelemetry.Tracer.Start(ctx, "service:person:get-by-id")
+	defer parentSpan.End()
+
 	person, err := s.repository.GetByID(ctx, ID)
 	if err != nil {
 		return person_dto.Info{}, err
 	}
 
-	var stacks []string
-	for _, stack := range person.Stack {
-		stacks = append(stacks, stack.Name)
+	stacks := make([]string, len(person.Stack), len(person.Stack))
+	for key, stack := range person.Stack {
+		stacks[key] = stack.Name
 	}
 
 	return person_dto.Info{
@@ -35,36 +39,42 @@ func (s *Service) GetByID(ctx context.Context, ID uuid.UUID) (person_dto.Info, e
 		Name:      person.Name,
 		Nickname:  person.Nickname,
 		BirthDate: person.BirthDate.String(),
-		Stack:     &stacks,
+		Stack:     stacks,
 	}, nil
 }
 
 func (s *Service) List(ctx context.Context, params person_dto.ListRequestParams) ([]person_dto.Info, error) {
+	ctx, parentSpan := opentelemetry.Tracer.Start(ctx, "service:person:list")
+	defer parentSpan.End()
+
 	persons, err := s.repository.List(ctx, params)
 	if err != nil {
 		return []person_dto.Info{}, err
 	}
 
-	personsDTO := make([]person_dto.Info, 0)
-	for _, p := range persons {
-		var stacks []string
-		for _, stack := range p.Stack {
-			stacks = append(stacks, stack.Name)
+	personsDTO := make([]person_dto.Info, len(persons), len(persons))
+	for key, p := range persons {
+		stacks := make([]string, len(p.Stack), len(p.Stack))
+		for key, stack := range p.Stack {
+			stacks[key] = stack.Name
 		}
 
-		personsDTO = append(personsDTO, person_dto.Info{
+		personsDTO[key] = person_dto.Info{
 			ID:        p.ID,
 			Name:      p.Name,
 			Nickname:  p.Nickname,
 			BirthDate: p.BirthDate.String(),
-			Stack:     &stacks,
-		})
+			Stack:     stacks,
+		}
 	}
 
 	return personsDTO, nil
 }
 
 func (s *Service) Create(ctx context.Context, payload person_dto.CreatePayload) (person_dto.Info, error) {
+	ctx, parentSpan := opentelemetry.Tracer.Start(ctx, "service:person:create")
+	defer parentSpan.End()
+
 	person, err := s.repository.GetByNickname(ctx, payload.Nickname)
 	if err != nil {
 		return person_dto.Info{}, err
@@ -79,9 +89,9 @@ func (s *Service) Create(ctx context.Context, payload person_dto.CreatePayload) 
 		return person_dto.Info{}, err
 	}
 
-	var stacks []string
-	for _, stack := range person.Stack {
-		stacks = append(stacks, stack.Name)
+	stacks := make([]string, len(person.Stack), len(person.Stack))
+	for key, stack := range person.Stack {
+		stacks[key] = stack.Name
 	}
 
 	return person_dto.Info{
@@ -89,6 +99,6 @@ func (s *Service) Create(ctx context.Context, payload person_dto.CreatePayload) 
 		Name:      person.Name,
 		Nickname:  person.Nickname,
 		BirthDate: person.BirthDate.String(),
-		Stack:     &stacks,
+		Stack:     stacks,
 	}, nil
 }

@@ -2,11 +2,10 @@ package database
 
 import (
 	"fmt"
-	"time"
 
+	"github.com/uptrace/opentelemetry-go-extra/otelgorm"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/plugin/dbresolver"
 	"rinha-de-backend/src/structs"
 )
 
@@ -28,19 +27,24 @@ func NewPostgres() *Postgres {
 		panic(err)
 	}
 
-	err = db.Use(
-		dbresolver.Register(dbresolver.Config{
-			//Replicas: []gorm.Dialector{
-			//	postgres.Open(getDSNRead()),
-			//},
-		}).
-			SetConnMaxIdleTime(time.Hour).
-			SetConnMaxLifetime(24 * time.Hour).
-			SetMaxIdleConns(10).
-			SetMaxOpenConns(10),
-	)
+	//err = db.Use(
+	//	dbresolver.Register(dbresolver.Config{
+	//		//Replicas: []gorm.Dialector{
+	//		//	postgres.Open(getDSNRead()),
+	//		//},
+	//	}).
+	//		SetConnMaxIdleTime(time.Hour).
+	//		SetConnMaxLifetime(24 * time.Hour).
+	//		SetMaxIdleConns(10).
+	//		SetMaxOpenConns(10),
+	//)
+	//if err != nil {
+	//	panic(err)
+	//}
+
+	err = db.Use(otelgorm.NewPlugin())
 	if err != nil {
-		return nil
+		panic(err)
 	}
 
 	err = db.AutoMigrate(&structs.Person{}, &structs.Stack{})

@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 	rb_cache "rinha-de-backend/pkg/cache"
 	"rinha-de-backend/pkg/database"
+	"rinha-de-backend/pkg/opentelemetry"
 	"rinha-de-backend/src/dtos/person_dto"
 	"rinha-de-backend/src/structs"
 )
@@ -28,18 +29,20 @@ func New(DB *database.Postgres, cache *rb_cache.Redis) *Repository {
 }
 
 func (r Repository) GetByNickname(ctx context.Context, nickname string) (structs.Person, error) {
+	ctx, parentSpan := opentelemetry.Tracer.Start(ctx, "repository:person:get-by-nickname")
+	defer parentSpan.End()
+
 	var person structs.Person
 	//err := r.cache.Cache.Get(ctx, nickname, &person)
 	//if err != nil {
 	//	if !errors.Is(cache.ErrCacheMiss, err) {
-	//		log.Error(err)
 	//		return structs.Person{}, err
 	//	}
 	//}
-
+	//
 	db := r.DB.DB
 
-	tx := db.Model(&structs.Person{}).
+	tx := db.WithContext(ctx).Model(&structs.Person{}).
 		Select("*").
 		Where("nickname = ?", nickname).
 		First(&person)
@@ -51,6 +54,9 @@ func (r Repository) GetByNickname(ctx context.Context, nickname string) (structs
 }
 
 func (r Repository) GetByID(ctx context.Context, ID uuid.UUID) (structs.Person, error) {
+	ctx, parentSpan := opentelemetry.Tracer.Start(ctx, "repository:person:get-by-id")
+	defer parentSpan.End()
+
 	var person structs.Person
 
 	//err := r.cache.Cache.Get(ctx, ID.String(), &person)
@@ -61,7 +67,7 @@ func (r Repository) GetByID(ctx context.Context, ID uuid.UUID) (structs.Person, 
 	//}
 
 	db := r.DB.DB
-	tx := db.Model(&structs.Person{}).
+	tx := db.WithContext(ctx).Model(&structs.Person{}).
 		Select("*").
 		Where("id = ?", ID.String()).
 		First(&person)
@@ -77,17 +83,23 @@ func (r Repository) GetByID(ctx context.Context, ID uuid.UUID) (structs.Person, 
 }
 
 func (r Repository) List(ctx context.Context, params person_dto.ListRequestParams) ([]structs.Person, error) {
+	ctx, parentSpan := opentelemetry.Tracer.Start(ctx, "repository:person:list")
+	defer parentSpan.End()
+
 	var persons []structs.Person
 
 	db := r.DB.DB
 
 	param := params.Params
 
-	qb := db.Table("people").
+	qb := db.WithContext(ctx).Table("people").
 		Select("*").
-		Preload("Stack").
-		Where("people.name LIKE ? OR people.nickname LIKE ?", "%"+param+"%", "%"+param+"%").
-		Or("people.id IN (SELECT person_id FROM stacks WHERE LOWER(name) LIKE ?)", "%"+strings.ToLower(param)+"%")
+		Preload("Stack")
+
+	if param != "" {
+		qb.Where("people.name LIKE ? OR people.nickname LIKE ?", "%"+param+"%", "%"+param+"%").
+			Or("people.id IN (SELECT person_id FROM stacks WHERE LOWER(name) LIKE ?)", "%"+strings.ToLower(param)+"%")
+	}
 
 	if params.Size != 0 {
 		qb = qb.Limit(params.Size)
@@ -103,26 +115,26 @@ func (r Repository) List(ctx context.Context, params person_dto.ListRequestParam
 }
 
 func (r Repository) Save(ctx context.Context, payload person_dto.CreatePayload) (structs.Person, error) {
-	stacks := make([]structs.Stack, 0)
-	for _, stack := range payload.Stack {
-		stacks = append(stacks, structs.Stack{
-			ID:   uuid.New(),
+	ctx, parentSpan := opentelemetry.Tracer.Start(ctx, "repository:person:save")
+	defer parentSpan.End()
+
+	stacks := make([]structs.Stack, len(payload.Stack), len(payload.Stack))
+	for key, stack := range payload.Stack {
+		stacks[key] = structs.Stack{
 			Name: stack,
-		})
+		}
 	}
 
 	birtDate, _ := time.Parse("2006-01-02", payload.BirthDate)
 
-	ID := uuid.New()
 	person := structs.Person{
-		ID:        ID,
 		Name:      payload.Name,
 		Nickname:  payload.Nickname,
 		BirthDate: birtDate,
 		Stack:     stacks,
 	}
 
-	tx := r.DB.DB.Create(&person)
+	tx := r.DB.DB.WithContext(ctx).Create(&person)
 	if tx.Error != nil {
 		return structs.Person{}, tx.Error
 	}
@@ -136,7 +148,7 @@ func (r Repository) Save(ctx context.Context, payload person_dto.CreatePayload) 
 	//
 	//err = r.cache.Cache.Set(&cache.Item{
 	//	Ctx:   ctx,
-	//	Key:   ID.String(),
+	//	Key:   person.ID.String(),
 	//	Value: person,
 	//	TTL:   time.Hour,
 	//})

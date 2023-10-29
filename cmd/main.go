@@ -2,14 +2,18 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	_ "net/http/pprof"
 	"time"
 
 	"github.com/caarlos0/env/v9"
+	"github.com/goccy/go-json"
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/fx"
 	"rinha-de-backend/pkg/cache"
 	"rinha-de-backend/pkg/database"
+	"rinha-de-backend/pkg/opentelemetry"
 	"rinha-de-backend/src/handlers"
 	"rinha-de-backend/src/handlers/person_handler"
 	"rinha-de-backend/src/interfaces"
@@ -29,8 +33,8 @@ func GetConfig() Config {
 
 func CreateServer() *fiber.App {
 	app := fiber.New(fiber.Config{
-		Prefork:     true,
-		Concurrency: 512 * 1024,
+		JSONEncoder: json.Marshal,
+		JSONDecoder: json.Unmarshal,
 	})
 
 	return app
@@ -65,6 +69,15 @@ func main() {
 	if err := env.Parse(&cfg); err != nil {
 		fmt.Printf("%+v\n", err)
 	}
+
+	otelShutdown, err := opentelemetry.Init(context.Background(), "rinha-backend", "V0.0.1")
+	if err != nil {
+		return
+	}
+	defer func() {
+		err = errors.Join(err, otelShutdown(context.Background()))
+	}()
+
 	fx.New(
 		fx.Provide(
 			CreateServer,

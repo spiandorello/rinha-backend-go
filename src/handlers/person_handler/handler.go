@@ -8,6 +8,7 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"rinha-de-backend/pkg/opentelemetry"
 	"rinha-de-backend/src/dtos/person_dto"
 	"rinha-de-backend/src/interfaces"
 )
@@ -35,6 +36,8 @@ func (ph PersonHandler) Routes(app *fiber.App) {
 
 func (ph PersonHandler) count(c *fiber.Ctx) error {
 	ctx := c.UserContext()
+	ctx, span := opentelemetry.Tracer.Start(ctx, "handler:person:count")
+	defer span.End()
 
 	p, err := ph.service.List(ctx, person_dto.ListRequestParams{})
 	if err != nil {
@@ -46,6 +49,9 @@ func (ph PersonHandler) count(c *fiber.Ctx) error {
 
 func (ph PersonHandler) listPerson(c *fiber.Ctx) error {
 	ctx := c.UserContext()
+	ctx, span := opentelemetry.Tracer.Start(ctx, "handler:person:list-person")
+	defer span.End()
+
 	params := c.Query("t", "")
 
 	if params == "" {
@@ -65,6 +71,9 @@ func (ph PersonHandler) listPerson(c *fiber.Ctx) error {
 
 func (ph PersonHandler) GetPerson(c *fiber.Ctx) error {
 	ctx := c.UserContext()
+	ctx, span := opentelemetry.Tracer.Start(ctx, "handler:person:get-person")
+	defer span.End()
+
 	ID := c.Params("id")
 
 	personID, err := uuid.Parse(ID)
@@ -82,6 +91,8 @@ func (ph PersonHandler) GetPerson(c *fiber.Ctx) error {
 
 func (ph PersonHandler) CreatePerson(c *fiber.Ctx) error {
 	ctx := c.UserContext()
+	ctx, span := opentelemetry.Tracer.Start(ctx, "handler:person:create-person")
+	defer span.End()
 
 	var payload person_dto.CreatePayload
 	err := c.BodyParser(&payload)

@@ -7,9 +7,9 @@
 # curl -v "http://localhost:9999/contagem-pessoas"
 
 WORKSPACE=$(pwd)
-GATLING_BIN_DIR="${WORKSPACE}/deps/gatling/bin"
-#GATLING_BIN_DIR=$HOME/Downloads/gatling-charts-highcharts-bundle-3.9.5/bin
-#WORKSPACE=/Users/eduardodaveigaspiandorello/GolandProjects/rinha-de-backend/tools/stress-test
+#GATLING_BIN_DIR="${WORKSPACE}/deps/gatling/bin"
+GATLING_BIN_DIR=$HOME/Downloads/gatling-charts-highcharts-bundle-3.9.5/bin
+WORKSPACE=/Users/eduardodaveigaspiandorello/GolandProjects/rinha-de-backend/tools/stress-test
 
 
 sh ${GATLING_BIN_DIR}/gatling.sh \

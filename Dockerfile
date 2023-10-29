@@ -1,4 +1,4 @@
-FROM golang:1.21
+FROM golang:1.21 as build_deps
 
 WORKDIR /usr/src/app
 
@@ -7,7 +7,11 @@ RUN go mod download && go mod verify
 
 COPY . .
 
-RUN go build -v -o /usr/local/bin/app ./cmd/main.go
+RUN CGO_ENABLED=0 go build -v -ldflags='-s -w' -o /usr/local/bin/app ./cmd/main.go
+
+FROM build_deps
+
+WORKDIR /usr/src/app
 
 EXPOSE 8085
 

@@ -12,5 +12,5 @@ type Info struct {
 	Name      string    `json:"nome"`
 	Nickname  string    `json:"apelido"`
 	BirthDate string    `json:"nascimento"`
-	Stack     *[]string `json:"stack"`
+	Stack     []string  `json:"stack"`
 }
